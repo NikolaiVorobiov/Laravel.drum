@@ -17,7 +17,7 @@ return new class extends Migration
             $table->enum('priority', [1, 2, 3, 4, 5]);
             $table->string('title');
             $table->text('description');
-            $table->timestamps();
+            $table->timestamp('createdAt');
             $table->timestamp('completedAt')->nullable();
         });
     }
