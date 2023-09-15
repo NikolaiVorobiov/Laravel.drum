@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Validator;
 
 class ApiTaskController extends Controller
 {
@@ -17,16 +18,15 @@ class ApiTaskController extends Controller
 
     public function store(Request $request)
     {
-        $this->_validate($request); // TODO check invalid data
+        $validator = $this->_validate($request); // TODO check invalid data
 
-//        $validated = $this->_validate($request);
-//        if (!$validated) {
-//            // Обработка ошибок валидации
-//            return response()->json(['errors' => 'error'], 400);
-//        }
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()],
+                Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         $task = new Task();
-        $this->_fill($request, $task);
+        $this->_fill($validator->validated(), $task);
 
         return response()->json([
             'message' => Response::$statusTexts[Response::HTTP_CREATED], // TODO analogs for other methods
@@ -36,9 +36,16 @@ class ApiTaskController extends Controller
 
     public function update(Request $request, $taskId)
     {
+        $validator = $this->_validate($request);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()],
+                Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $task = Task::find($taskId);
-        $this->_validate($request);
-        $this->_fill($request, $task);
+
+        $this->_fill($validator->validated(), $task);
 
         return response()->json([
             'message' => Response::$statusTexts[Response::HTTP_OK],
@@ -66,12 +73,9 @@ class ApiTaskController extends Controller
         ], Response::HTTP_OK);
     }
 
-
-
-
     private function _validate(Request $request)
     {
-       $request->validate([
+        $validator = Validator::make($request->all(), [
             'user_id' => 'required|exists:users,id',
             'status' => 'required|boolean',
             'priority' => 'required|in:1,2,3,4,5',
@@ -79,32 +83,19 @@ class ApiTaskController extends Controller
             'description' => 'required|string',
             'createdAt' => 'required|date',
             'completedAt' => 'nullable|date',
-        ],[
-            'user_id.required' => 'The :attribute field is required.',
-            'user_id.exists' => 'The :attribute must exist in the database.',
-            'status.required' => 'The :attribute field is required.',
-            'status.boolean' => 'The :attribute must be a boolean (true or false) value.',
-            'priority.required' => 'The :attribute field is required.',
-            'priority.in' => 'The :attribute must be one of the allowed values (1, 2, 3, 4, 5).',
-            'title.required' => 'The :attribute field is required.',
-            'title.string' => 'The :attribute must be a string.',
-            'description.required' => 'The :attribute field is required.',
-            'description.string' => 'The :attribute must be a string.',
-            'createdAt.required' => 'The :attribute field is required.',
-            'createdAt.date' => 'The :attribute must be a valid date.',
-            'completedAt.date' => 'The :attribute must be a valid date if it is present.',
         ]);
+        return $validator;
     }
 
-    private function _fill(Request $request, $task)
+    private function _fill($validated, $task)
     {
-        $task->user_id = $request->input('user_id');
-        $task->status = $request->input('status');
-        $task->priority = $request->input('priority');
-        $task->title = $request->input('title');
-        $task->description = $request->input('description');
-        $task->createdAt = $request->input('createdAt');
-        $task->completedAt = $request->input('completedAt');
+        $task->user_id = $validated['user_id'];
+        $task->status = $validated['status'];
+        $task->priority = $validated['priority'];
+        $task->title = $validated['title'];
+        $task->description = $validated['description'];
+        $task->createdAt = $validated['createdAt'];
+        $task->completedAt = $validated['completedAt'] ?? null;
 
         $task->save();
     }
