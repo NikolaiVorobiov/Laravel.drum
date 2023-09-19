@@ -21,7 +21,7 @@ return new class extends Migration
                 ->onUpdate('cascade')
                 ->index();
 
-            $table->boolean('status');
+            $table->boolean('status')->comment('0 - is todo; 1 - is done');;
             $table->enum('priority', [1, 2, 3, 4, 5]);
             $table->string('title');
             $table->text('description');

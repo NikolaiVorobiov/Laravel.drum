@@ -9,6 +9,16 @@ class Task extends Model
 {
     use HasFactory;
 
+    public const STATUS_TODO = 0;
+    public const STATUS_DONE = 1;
+    public const STATUS_NAME_TODO = 'todo';
+    public const STATUS_NAME_DONE = 'done';
+
+    public const STATUSES = [
+        self::STATUS_NAME_TODO => self::STATUS_TODO,
+        self::STATUS_NAME_DONE => self::STATUS_DONE,
+    ];
+
     public $timestamps = false;
 
     /**
@@ -16,5 +26,13 @@ class Task extends Model
      *
      * @var array
      */
-    protected $fillable = ['user_id', 'status', 'priority', 'title', 'description', 'createdAt', 'completedAt'];
+    protected $fillable = [
+        'user_id',
+        'status',
+        'priority',
+        'title',
+        'description',
+        'createdAt',
+        'completedAt'
+    ];
 }
