@@ -17,19 +17,24 @@ class ApiCheckAuth
      */
     public function handle(Request $request, Closure $next): Response
     {
-        $users = User::all();
-        $authorizationHeader = $request->header('Authorization');
+        $token = $request->bearerToken(); // Retrieving the token from the authorization header
 
-        $authorization = false;
-        foreach ($users as $user) {
-            if ( $authorizationHeader == 'Bearer ' . $user->token) {
-                $authorization = true;
-                break;
-            }
+        if (!$token) {
+            return response()->json([
+                'message' => Response::$statusTexts[Response::HTTP_UNAUTHORIZED]
+            ], Response::HTTP_UNAUTHORIZED);
         }
 
-        return $authorization ? $next($request) : response()->json([
-            'message' => Response::$statusTexts[Response::HTTP_UNAUTHORIZED]
-        ], Response::HTTP_UNAUTHORIZED);
+        // Searching for a user by token in cache or database
+        $user = User::where('token', $token)->first();
+
+        if (!$user) {
+            return response()->json([
+                'message' => Response::$statusTexts[Response::HTTP_UNAUTHORIZED]
+            ], Response::HTTP_UNAUTHORIZED);
+        }
+
+        // Pass control further if authentication is successful
+        return $next($request);
     }
 }
