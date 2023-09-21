@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Http\Requests\TaskRequest;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
@@ -21,18 +22,20 @@ class ApiCheckAuth
 
         if (!$token) {
             return response()->json([
-                'message' => Response::$statusTexts[Response::HTTP_UNAUTHORIZED]
-            ], Response::HTTP_UNAUTHORIZED);
+                'message' => Response::$statusTexts[Response::HTTP_BAD_REQUEST]
+            ], Response::HTTP_BAD_REQUEST);
         }
 
         // Searching for a user by token in cache or database
-        $user = User::where('token', $token)->first();
+        $user = User::query()->where('token', $token)->first();
 
         if (!$user) {
             return response()->json([
                 'message' => Response::$statusTexts[Response::HTTP_UNAUTHORIZED]
             ], Response::HTTP_UNAUTHORIZED);
         }
+
+        $request->merge(['user' => $user]);
 
         // Pass control further if authentication is successful
         return $next($request);

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\TaskRequest;
 use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -50,17 +51,10 @@ class ApiTaskController extends Controller
     }
 
 
-    public function store(Request $request)
+    public function store(TaskRequest $request)
     {
-        $validator = $this->_validate($request); // TODO check invalid data
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()],
-                Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
         $task = new Task();
-        $this->_fill($validator->validated(), $task);
+        $this->_fill($request, $task);
 
         return response()->json([
             'message' => Response::$statusTexts[Response::HTTP_CREATED],
@@ -68,45 +62,31 @@ class ApiTaskController extends Controller
         ], Response::HTTP_CREATED);
     }
 
-    public function update(Request $request, $taskId)
+    public function update(TaskRequest $request, $taskId)
     {
-        $validator = $this->_validate($request);
+        $task = Task::query()->where('id', $taskId)->where('user_id', $request->user->id)->first();
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()],
-                Response::HTTP_BAD_REQUEST);
+        if (!$task) {
+            return response()->json([
+                'message' => Response::$statusTexts[Response::HTTP_NOT_FOUND]
+            ], Response::HTTP_NOT_FOUND);
         }
 
-        $task = Task::find($taskId);
+        $this->_fill($request, $task);
 
-        $userId = Task::find($taskId)->user_id;
-        $currentUserId = $this->_getCurrentUserId($request);
-
-        if ($currentUserId == $userId) {
-            $this->_fill($validator->validated(), $task);
-
-            return response()->json([
-                'message' => Response::$statusTexts[Response::HTTP_OK],
-                'taskId' => $taskId
-            ], Response::HTTP_OK);
-
-        } else {
-            return response()->json([
-                'message' => Response::$statusTexts[Response::HTTP_BAD_REQUEST]
-            ], Response::HTTP_BAD_REQUEST);
-        }
+        return response()->json([
+            'message' => Response::$statusTexts[Response::HTTP_OK],
+            'taskId' => $taskId
+        ], Response::HTTP_OK);
     }
 
     public function destroy(Request $request, $taskId)
     {
-        $query= Task::query();
-
-        $task = $query->find($taskId);
+        $task = Task::query()->find($taskId);
         $userId = $task->user_id;
-        $currentUserId = $this->_getCurrentUserId($request);
 
-        if ($currentUserId == $userId && $task->status == 0) {
-            $query->destroy($taskId);
+        if ($request->user->id === $userId && $task->status === 0) {
+            Task::destroy($taskId);
 
             return response()->json([
                 'message' => Response::$statusTexts[Response::HTTP_OK],
@@ -123,11 +103,9 @@ class ApiTaskController extends Controller
     public function updateStatusToDone(Request $request, $taskId)
     {
         $query = Task::query();
+        $userId = Task::find($taskId)->user_id ?? '';
 
-        $userId = Task::find($taskId)->user_id;
-        $currentUserId = $this->_getCurrentUserId($request);
-
-        if ($currentUserId == $userId) {
+        if ($userId && $request->user->id == $userId) {
 
             $query->where('id', $taskId)->update(['status' => 1]);
 
@@ -143,23 +121,11 @@ class ApiTaskController extends Controller
         }
     }
 
-    private function _validate(Request $request)
+    private function _fill(TaskRequest $request,$task)
     {
-        $validator = Validator::make($request->all(), [
-            'user_id' => 'required|exists:users,id',
-            'status' => 'required|boolean',
-            'priority' => 'required|in:1,2,3,4,5',
-            'title' => 'required|string',
-            'description' => 'required|string',
-            'createdAt' => 'required|date',
-            'completedAt' => 'nullable|date',
-        ]);
-        return $validator;
-    }
+        $validated = $request->validated();
 
-    private function _fill($validated, $task)
-    {
-        $task->user_id = $validated['user_id'];
+        $task->user_id = $request->user->id;
         $task->status = $validated['status'];
         $task->priority = $validated['priority'];
         $task->title = $validated['title'];
@@ -170,18 +136,4 @@ class ApiTaskController extends Controller
         $task->save();
     }
 
-    private function _getCurrentUserId(Request $request)
-    {
-        $authorizationHeader = $request->header('Authorization');
-        $token = Str::substr($authorizationHeader, 7);
-        $users = User::all();
-
-        foreach ($users as $user) {
-            if ($user->token == $token) {
-                $currentUserId = $user->id;
-                break;
-            }
-        }
-        return $currentUserId ?? '';
-    }
 }
