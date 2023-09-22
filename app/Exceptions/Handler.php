@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Illuminate\Foundation\Exceptions\Handler as ExceptionHandler;
+use Illuminate\Validation\ValidationException;
 use Throwable;
 
 class Handler extends ExceptionHandler
@@ -27,4 +28,20 @@ class Handler extends ExceptionHandler
             //
         });
     }
+
+    public function render($request, Throwable $e)
+    {
+        if ($e instanceof ValidationException) {
+            // Если это исключение валидации, верните JSON-ответ с сообщениями об ошибках
+            return response()->json([
+                'errors' => $e->validator->errors(),
+            ], 422); // Можете выбрать другой HTTP-код, например, 422
+        }
+
+        // Обработка других типов исключений
+
+        return parent::render($request, $e);
+    }
+
+
 }
