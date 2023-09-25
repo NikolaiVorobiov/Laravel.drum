@@ -121,7 +121,7 @@ class ApiTaskController extends Controller
         }
     }
 
-    private function _fill(TaskRequest $request,$task)
+    private function _fill(TaskRequest $request,Task $task): void
     {
         $validated = $request->validated();
 
